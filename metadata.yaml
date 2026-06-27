@@ -1,0 +1,6 @@
+name: astrbot_plugin_xiaozhao_memory
+desc: 小昭本地持久记忆插件，支持群聊隔离与同一用户跨群联动。
+help: 后台记录群聊消息，并在小昭回复前注入相关记忆。
+version: 0.1.0
+author: zhao
+repo: ""

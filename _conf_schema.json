@@ -1,0 +1,42 @@
+{
+  "enabled": {
+    "description": "启用小昭本地持久记忆",
+    "type": "bool",
+    "default": true
+  },
+  "retention_hours": {
+    "description": "记忆至少保留小时数",
+    "type": "int",
+    "default": 12
+  },
+  "group_memory_limit": {
+    "description": "每次注入当前群聊记忆条数上限",
+    "type": "int",
+    "default": 8
+  },
+  "user_memory_limit": {
+    "description": "每次注入同一用户跨群记忆条数上限",
+    "type": "int",
+    "default": 6
+  },
+  "max_text_chars": {
+    "description": "单条消息进入记忆库的最大字符数",
+    "type": "int",
+    "default": 500
+  },
+  "prune_interval_sec": {
+    "description": "清理过期记忆的最小间隔秒数",
+    "type": "int",
+    "default": 1800
+  },
+  "storage_backend": {
+    "description": "存储后端：postgres 使用独立 SQL 容器；sqlite 为本地兜底",
+    "type": "string",
+    "default": "postgres"
+  },
+  "postgres_dsn": {
+    "description": "Postgres 连接串",
+    "type": "string",
+    "default": "postgresql://xiaozhao:xiaozhao_memory@xiaozhao_memory_db:5432/xiaozhao_memory"
+  }
+}
