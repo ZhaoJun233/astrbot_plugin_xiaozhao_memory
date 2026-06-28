@@ -29,6 +29,36 @@
     "type": "int",
     "default": 1800
   },
+  "memory_judge_mode": {
+    "description": "记忆场景判断模式",
+    "hint": "hybrid=规则先判，必要时用当前对话模型分析；rules=只用规则；llm=总是用当前模型分析；always=每次回复都检索；off=不注入记忆。",
+    "type": "string",
+    "default": "hybrid"
+  },
+  "memory_judge_timeout_sec": {
+    "description": "记忆场景智能判断超时秒数",
+    "hint": "当前模型判断是否需要检索记忆的最长等待时间；超时或失败时会降级到规则判断，不影响主回复。",
+    "type": "int",
+    "default": 4
+  },
+  "memory_refine_enabled": {
+    "description": "启用候选记忆智能提炼",
+    "hint": "检索到候选记忆后，用当前对话模型提炼和当前问题相关的内容，减少无关群聊噪声。",
+    "type": "bool",
+    "default": true
+  },
+  "memory_refine_timeout_sec": {
+    "description": "候选记忆智能提炼超时秒数",
+    "hint": "提炼失败或超时时会直接使用原始候选记忆，不影响主回复。",
+    "type": "int",
+    "default": 5
+  },
+  "inject_only_when_smart_reply": {
+    "description": "仅在智能回复插件决定回复时注入",
+    "hint": "默认关闭，以兼容 @、命令或其他 AstrBot 回复流程；开启后只联动 xiaozhao_smart_mention 标记为 REPLY 的请求。",
+    "type": "bool",
+    "default": false
+  },
   "storage_backend": {
     "description": "存储后端：postgres 使用独立 SQL 容器；sqlite 为本地兜底",
     "type": "string",
