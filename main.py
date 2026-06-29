@@ -11,12 +11,22 @@ from astrbot.api.star import Context, Star
 from astrbot.core.platform.message_type import MessageType
 from astrbot.core.star.star_tools import StarTools
 
-from .memory_store import SQLiteMemoryStore, build_memory_store
-from .memory_scene import (
-    MemoryNeedDecision,
-    analyze_memory_need_by_rules,
-    parse_memory_need_decision,
-)
+try:
+    from .memory_store import SQLiteMemoryStore, build_memory_store
+    from .memory_scene import (
+        MemoryNeedDecision,
+        analyze_memory_need_by_rules,
+        parse_memory_need_decision,
+    )
+    from .platform_identity import event_identity
+except ImportError:
+    from memory_store import SQLiteMemoryStore, build_memory_store
+    from memory_scene import (
+        MemoryNeedDecision,
+        analyze_memory_need_by_rules,
+        parse_memory_need_decision,
+    )
+    from platform_identity import event_identity
 
 
 PLUGIN_TAG = "[xiaozhao_memory]"
@@ -112,14 +122,15 @@ class Main(Star):
         if not text:
             return
         text = text[: self.max_text_chars]
+        identity = event_identity(event)
 
         async with self._lock:
             await asyncio.to_thread(
                 self.store.record_message,
-                platform_id=event.get_platform_id(),
-                bot_id=event.get_self_id(),
-                group_id=event.get_group_id(),
-                user_id=event.get_sender_id(),
+                platform_id=identity.platform_id,
+                bot_id=identity.bot_id,
+                group_id=identity.group_id,
+                user_id=identity.sender_id,
                 nickname=event.get_sender_name(),
                 text=text,
                 created_at=time.time(),
@@ -148,13 +159,15 @@ class Main(Star):
             logger.debug("%s skip inject: %s text=%s", PLUGIN_TAG, decision.reason, query)
             return
 
+        identity = event_identity(event)
         async with self._lock:
             memories = await asyncio.to_thread(
                 self.store.retrieve,
-                platform_id=event.get_platform_id(),
-                bot_id=event.get_self_id(),
-                group_id=event.get_group_id(),
-                user_id=event.get_sender_id(),
+                platform_id=identity.platform_id,
+                bot_id=identity.bot_id,
+                bot_aliases=identity.bot_aliases,
+                group_id=identity.group_id,
+                user_id=identity.sender_id,
                 query=decision.query or query,
                 group_limit=self.group_limit,
                 user_limit=self.user_limit,

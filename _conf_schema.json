@@ -11,11 +11,13 @@
   },
   "group_memory_limit": {
     "description": "每次注入当前群聊记忆条数上限",
+    "hint": "当前群聊记忆按平台实例、机器人账号和群/会话 ID 隔离；OneBot 是群号，QQ Official 是 group_openid 或频道 ID。",
     "type": "int",
     "default": 8
   },
   "user_memory_limit": {
     "description": "每次注入同一用户跨群记忆条数上限",
+    "hint": "同一用户跨群记忆仍按平台实例和机器人账号隔离。OneBot 用户 ID 是 QQ 号；QQ Official 用户 ID 是 member_openid/user_openid。",
     "type": "int",
     "default": 6
   },
@@ -61,6 +63,7 @@
   },
   "storage_backend": {
     "description": "存储后端：postgres 使用独立 SQL 容器；sqlite 为本地兜底",
+    "hint": "数据库记录会按 platform_id + bot_id 做多机器人隔离。QQ Official 的 bot_id 会稳定归一到 AstrBot 平台实例 ID，并兼容旧 qq_official 记录。",
     "type": "string",
     "default": "postgres"
   },

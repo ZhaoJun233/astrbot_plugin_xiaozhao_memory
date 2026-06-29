@@ -104,6 +104,7 @@ class SQLiteMemoryStore:
         *,
         platform_id: str = "",
         bot_id: str = "",
+        bot_aliases: list[str] | tuple[str, ...] | None = None,
         group_id: str,
         user_id: str,
         query: str,
@@ -114,17 +115,18 @@ class SQLiteMemoryStore:
         now = time.time() if now is None else float(now)
         cutoff = now - self.retention_seconds
         query_terms = _tokenize(query)
+        bot_ids = _bot_id_candidates(bot_id, bot_aliases)
 
         group_records = self._fetch_group_records(
             platform_id=str(platform_id or ""),
-            bot_id=str(bot_id or ""),
+            bot_ids=bot_ids,
             group_id=str(group_id or ""),
             cutoff=cutoff,
             limit=max(group_limit * 4, group_limit),
         )
         user_records = self._fetch_user_records(
             platform_id=str(platform_id or ""),
-            bot_id=str(bot_id or ""),
+            bot_ids=bot_ids,
             user_id=str(user_id or ""),
             cutoff=cutoff,
             limit=max(user_limit * 4, user_limit),
@@ -153,23 +155,24 @@ class SQLiteMemoryStore:
         self,
         *,
         platform_id: str,
-        bot_id: str,
+        bot_ids: tuple[str, ...],
         group_id: str,
         cutoff: float,
         limit: int,
     ) -> list[MemoryRecord]:
         if not group_id:
             return []
+        placeholders = ",".join("?" for _ in bot_ids)
         with self._connect() as conn:
             rows = conn.execute(
-                """
+                f"""
                 SELECT platform_id, bot_id, group_id, user_id, nickname, text, created_at
                 FROM memories
-                WHERE platform_id = ? AND bot_id = ? AND group_id = ? AND created_at >= ?
+                WHERE platform_id = ? AND bot_id IN ({placeholders}) AND group_id = ? AND created_at >= ?
                 ORDER BY created_at DESC
                 LIMIT ?
                 """,
-                (platform_id, bot_id, group_id, cutoff, int(limit)),
+                (platform_id, *bot_ids, group_id, cutoff, int(limit)),
             ).fetchall()
         return [MemoryRecord("group", *row) for row in rows]
 
@@ -177,23 +180,24 @@ class SQLiteMemoryStore:
         self,
         *,
         platform_id: str,
-        bot_id: str,
+        bot_ids: tuple[str, ...],
         user_id: str,
         cutoff: float,
         limit: int,
     ) -> list[MemoryRecord]:
         if not user_id:
             return []
+        placeholders = ",".join("?" for _ in bot_ids)
         with self._connect() as conn:
             rows = conn.execute(
-                """
+                f"""
                 SELECT platform_id, bot_id, group_id, user_id, nickname, text, created_at
                 FROM memories
-                WHERE platform_id = ? AND bot_id = ? AND user_id = ? AND created_at >= ?
+                WHERE platform_id = ? AND bot_id IN ({placeholders}) AND user_id = ? AND created_at >= ?
                 ORDER BY created_at DESC
                 LIMIT ?
                 """,
-                (platform_id, bot_id, user_id, cutoff, int(limit)),
+                (platform_id, *bot_ids, user_id, cutoff, int(limit)),
             ).fetchall()
         return [MemoryRecord("user", *row) for row in rows]
 
@@ -307,24 +311,25 @@ class PostgresMemoryStore(SQLiteMemoryStore):
         self,
         *,
         platform_id: str,
-        bot_id: str,
+        bot_ids: tuple[str, ...],
         group_id: str,
         cutoff: float,
         limit: int,
     ) -> list[MemoryRecord]:
         if not group_id:
             return []
+        placeholders = ",".join(["%s"] * len(bot_ids))
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    """
+                    f"""
                     SELECT platform_id, bot_id, group_id, user_id, nickname, text, created_at
                     FROM memories
-                    WHERE platform_id = %s AND bot_id = %s AND group_id = %s AND created_at >= %s
+                    WHERE platform_id = %s AND bot_id IN ({placeholders}) AND group_id = %s AND created_at >= %s
                     ORDER BY created_at DESC
                     LIMIT %s
                     """,
-                    (platform_id, bot_id, group_id, cutoff, int(limit)),
+                    (platform_id, *bot_ids, group_id, cutoff, int(limit)),
                 )
                 rows = cur.fetchall()
         return [MemoryRecord("group", *row) for row in rows]
@@ -333,24 +338,25 @@ class PostgresMemoryStore(SQLiteMemoryStore):
         self,
         *,
         platform_id: str,
-        bot_id: str,
+        bot_ids: tuple[str, ...],
         user_id: str,
         cutoff: float,
         limit: int,
     ) -> list[MemoryRecord]:
         if not user_id:
             return []
+        placeholders = ",".join(["%s"] * len(bot_ids))
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    """
+                    f"""
                     SELECT platform_id, bot_id, group_id, user_id, nickname, text, created_at
                     FROM memories
-                    WHERE platform_id = %s AND bot_id = %s AND user_id = %s AND created_at >= %s
+                    WHERE platform_id = %s AND bot_id IN ({placeholders}) AND user_id = %s AND created_at >= %s
                     ORDER BY created_at DESC
                     LIMIT %s
                     """,
-                    (platform_id, bot_id, user_id, cutoff, int(limit)),
+                    (platform_id, *bot_ids, user_id, cutoff, int(limit)),
                 )
                 rows = cur.fetchall()
         return [MemoryRecord("user", *row) for row in rows]
@@ -407,6 +413,16 @@ def _normalize_text(text: str, limit: int = 500) -> str:
     if len(text) > limit:
         return text[:limit]
     return text
+
+
+def _bot_id_candidates(
+    bot_id: str,
+    bot_aliases: list[str] | tuple[str, ...] | None = None,
+) -> tuple[str, ...]:
+    candidates = [str(bot_id or "")]
+    candidates.extend(str(alias or "") for alias in (bot_aliases or []))
+    deduped = tuple(dict.fromkeys(candidates))
+    return deduped or ("",)
 
 
 def _tokenize(text: str) -> set[str]:

@@ -129,6 +129,82 @@ class SQLiteMemoryStoreTest(unittest.TestCase):
             self.assertIn("只告诉 A 机器人的记忆", memories)
             self.assertNotIn("只告诉 B 机器人的记忆", memories)
 
+    def test_retrieve_can_include_bot_aliases_for_qq_official_migration(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            store = SQLiteMemoryStore(Path(tmp) / "memory.db", retention_hours=12)
+            store.initialize()
+
+            now = 1_000_000.0
+            store.record_message(
+                platform_id="default_1903757478",
+                bot_id="qq_official",
+                group_id="group-openid-a",
+                user_id="member-openid-a",
+                nickname="alice",
+                text="旧版本官方机器人记忆",
+                created_at=now,
+            )
+            store.record_message(
+                platform_id="default_1903757478",
+                bot_id="default_1903757478",
+                group_id="group-openid-a",
+                user_id="member-openid-a",
+                nickname="alice",
+                text="新版本官方机器人记忆",
+                created_at=now + 1,
+            )
+
+            memories = store.retrieve(
+                platform_id="default_1903757478",
+                bot_id="default_1903757478",
+                bot_aliases=["qq_official"],
+                group_id="group-openid-a",
+                user_id="member-openid-a",
+                query="官方机器人",
+                now=now + 10,
+            )
+
+            self.assertIn("旧版本官方机器人记忆", memories)
+            self.assertIn("新版本官方机器人记忆", memories)
+
+    def test_bot_aliases_do_not_cross_platform_instances(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            store = SQLiteMemoryStore(Path(tmp) / "memory.db", retention_hours=12)
+            store.initialize()
+
+            now = 1_000_000.0
+            store.record_message(
+                platform_id="default_1903757478",
+                bot_id="default_1903757478",
+                group_id="group-openid-a",
+                user_id="member-openid-a",
+                nickname="alice",
+                text="A 官方机器人记忆",
+                created_at=now,
+            )
+            store.record_message(
+                platform_id="default_2222222222",
+                bot_id="default_2222222222",
+                group_id="group-openid-a",
+                user_id="member-openid-a",
+                nickname="alice",
+                text="B 官方机器人记忆",
+                created_at=now + 1,
+            )
+
+            memories = store.retrieve(
+                platform_id="default_1903757478",
+                bot_id="default_1903757478",
+                bot_aliases=["qq_official"],
+                group_id="group-openid-a",
+                user_id="member-openid-a",
+                query="官方机器人",
+                now=now + 10,
+            )
+
+            self.assertIn("A 官方机器人记忆", memories)
+            self.assertNotIn("B 官方机器人记忆", memories)
+
 
 if __name__ == "__main__":
     unittest.main()
